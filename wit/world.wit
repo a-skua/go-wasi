@@ -1,0 +1,6 @@
+package component:root;
+
+world http-proxy {
+    include wasi:cli/imports@0.2.5;
+    include wasi:http/proxy@0.2.5;
+}
