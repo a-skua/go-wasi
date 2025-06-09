@@ -1,1 +1,1 @@
-package wasi;
+package wasi
