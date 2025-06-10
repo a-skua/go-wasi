@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/types"
+	"github.com/a-skua/go-wasi/internal/wit"
 	"go.bytecodealliance.org/cm"
 )
 
@@ -43,37 +44,38 @@ type body struct {
 }
 
 func parseBody(in types.IncomingRequest) (*body, error) {
-	con := in.Consume()
-	if con.IsErr() {
-		return nil, fmt.Errorf("failed to consume body: %s", con.Err())
+	con, err := wit.HandleResult(in.Consume())
+	if err != nil {
+		return nil, fmt.Errorf("failed to consume body: %s", err)
 	}
 
-	stream := con.OK().Stream()
-	if stream.IsErr() {
-		return nil, fmt.Errorf("failed to get stream: %s", stream.Err())
+	stream, err := wit.HandleResult(con.Stream())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stream: %s", err)
 	}
 
 	return &body{
-		stream: stream.OK(),
+		stream: stream,
 	}, nil
 }
 
 func (b *body) Read(p []byte) (int, error) {
+	const zero = 0
 	if b.stream == nil {
-		return 0, io.EOF // no body to read
+		return zero, io.EOF // no body to read
 	}
 
-	result := b.stream.Read(uint64(len(p)))
-	if result.IsErr() {
-		return 0, fmt.Errorf("failed to read body: %s", result.Err())
+	list, err := wit.HandleResult(b.stream.Read(uint64(len(p))))
+	if err != nil {
+		return zero, fmt.Errorf("failed to read body: %s", err)
 	}
 
 	// copy
-	n := int(result.OK().Len())
+	n := int(list.Len())
 	if n > len(p) {
 		n = len(p)
 	}
-	copy(p, result.OK().Slice())
+	copy(p, list.Slice())
 	return n, nil
 }
 
@@ -169,15 +171,19 @@ func (r *response) flush(out types.ResponseOutparam) {
 		cm.OK[cm.Result[types.ErrorCodeShape, types.OutgoingResponse, types.ErrorCode]](w),
 	)
 
-	if b := w.Body(); b.IsOK() {
-		body := *b.OK()
-		defer types.OutgoingBodyFinish(body, cm.None[types.Trailers]())
-
-		if w := body.Write(); w.IsOK() {
-			output := w.OK()
-			defer output.ResourceDrop()
-
-			output.Write(cm.ToList(r.body.Bytes()))
-		}
+	body, err := wit.HandleResult(w.Body())
+	if err != nil {
+		// TODO: handle error properly
+		panic(fmt.Errorf("failed to get outgoing body: %s", err))
 	}
+	defer types.OutgoingBodyFinish(*body, cm.None[types.Trailers]())
+
+	output, err := wit.HandleResult(body.Write())
+	if err != nil {
+		// TODO: handle error properly
+		panic(fmt.Errorf("failed to write body: %s", err))
+	}
+	defer output.ResourceDrop()
+
+	output.Write(cm.ToList(r.body.Bytes()))
 }

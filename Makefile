@@ -20,3 +20,7 @@ gen_http_proxy: wit/world.wasm
 wit/world.wasm: wit/world.wit
 	wkg wit fetch
 	wkg wit build -o $@
+
+.PHONY: fmt
+fmt:
+	go fmt ./...

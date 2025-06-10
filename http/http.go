@@ -1,13 +1,13 @@
 package http
 
 import (
-	gohttp "net/http"
+	"net/http"
 
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/incoming-handler"
 )
 
 // wasi:http/proxy
-func ServeProxy(h gohttp.Handler) error {
+func ServeProxy(h http.Handler) error {
 	incominghandler.Exports.Handle = newProxy(h)
 	return nil
 }
