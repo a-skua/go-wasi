@@ -7,7 +7,7 @@ import (
 	gohttp "net/http"
 	"net/url"
 
-	"github.com/a-skua/go-wasi/internal/wasi/http/types"
+	"github.com/a-skua/go-wasi/internal/gen/wasi/http/types"
 	"go.bytecodealliance.org/cm"
 )
 
@@ -28,6 +28,7 @@ func newProxy(handler gohttp.Handler) proxyHandler {
 }
 
 func parseUrl(in types.IncomingRequest) (*url.URL, error) {
+	// FIXME
 	rawURL := fmt.Sprintf("%s://%s%s",
 		in.Scheme().Value(),
 		in.Authority().Value(),

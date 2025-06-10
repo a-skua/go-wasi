@@ -15,7 +15,7 @@ gen: gen_http_proxy
 
 .PHONY: gen_http_proxy
 gen_http_proxy: wit/world.wasm
-	go tool wit-bindgen-go generate --world http-proxy --out internal $<
+	go tool wit-bindgen-go generate --world http-proxy --out internal/gen $<
 
 wit/world.wasm: wit/world.wit
 	wkg wit fetch
