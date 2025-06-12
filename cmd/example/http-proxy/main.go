@@ -7,6 +7,12 @@ import (
 	proxy "github.com/a-skua/go-wasi/http"
 )
 
+func init() {
+	proxy.ServeProxy(http.HandlerFunc(handler))
+}
+
+func main() {}
+
 func handler(w http.ResponseWriter, r *http.Request) {
 	const zero = ""
 	name := r.URL.Query().Get("name")
@@ -17,9 +23,3 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, %s!\n", name)
 	w.WriteHeader(http.StatusTeapot)
 }
-
-func init() {
-	proxy.ServeProxy(http.HandlerFunc(handler))
-}
-
-func main() {}

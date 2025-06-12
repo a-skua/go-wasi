@@ -7,9 +7,10 @@ import (
 	gohttp "net/http"
 	"net/url"
 
+	"go.bytecodealliance.org/cm"
+
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/types"
 	"github.com/a-skua/go-wasi/internal/wit"
-	"go.bytecodealliance.org/cm"
 )
 
 type proxyHandler func(request types.IncomingRequest, responseOut types.ResponseOutparam)
@@ -77,6 +78,11 @@ func (b *body) Read(p []byte) (int, error) {
 	}
 	copy(p, list.Slice())
 	return n, nil
+}
+
+func (b *body) Close() error {
+	b.stream.ResourceDrop()
+	return nil
 }
 
 func parseHeaders(in types.IncomingRequest) gohttp.Header {

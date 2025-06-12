@@ -9,14 +9,20 @@ WASI light wrapper
 make
 ```
 
-### http/proxy
+### e.g. http-proxy
 
 ```sh
-wasmtime serve -S cli cmd/example/http-proxy/main.wasm
+wasmtime serve -S cli cmd/example/http-proxy.wasm
 ```
 
 ```sh
 curl -i 'http://localhost:8080'
+```
+
+### e.g. http-client
+
+```sh
+wasmtime run -S http cmd/example/http-client.wasm
 ```
 
 ### Tools
