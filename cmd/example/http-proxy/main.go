@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"net/http"
 
-	proxy "github.com/a-skua/go-wasi/http"
+	"github.com/a-skua/go-wasi/http/proxy"
 )
 
 func init() {
-	proxy.ServeProxy(http.HandlerFunc(handler))
+	proxy.Handler = http.HandlerFunc(httpHandler)
 }
 
 func main() {}
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func httpHandler(w http.ResponseWriter, r *http.Request) {
 	const zero = ""
 	name := r.URL.Query().Get("name")
 	if name == zero {
