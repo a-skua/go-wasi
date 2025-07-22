@@ -38,15 +38,15 @@ func (r *response) Write(b []byte) (int, error) {
 }
 
 func (r *response) WriteHeader(statusCode int) {
-	r.header.Status = statusCode
+	r.header.status = statusCode
 }
 
 func (r *response) Flush() error {
 	w := types.NewOutgoingResponse(r.header.headers())
 
-	ok := result.HandleBool(w.SetStatusCode(types.StatusCode(r.header.Status)))
+	ok := result.HandleBool(w.SetStatusCode(r.header.statusCode()))
 	if !ok {
-		return fmt.Errorf("failed to set status code %d", r.header.Status)
+		return fmt.Errorf("failed to set status code %d", r.header.statusCode())
 	}
 
 	defer types.ResponseOutparamSet(

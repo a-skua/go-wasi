@@ -1,22 +1,20 @@
 package http
 
 import (
-	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 
 	"go.bytecodealliance.org/cm"
 
+	"github.com/a-skua/go-wasi/http/internal/url"
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/types"
-	"github.com/a-skua/go-wasi/internal/wit/option"
 	"github.com/a-skua/go-wasi/internal/wit/result"
 )
 
 func ParseRequest(in types.IncomingRequest) (*http.Request, error) {
 	method := in.Method()
 
-	url, err := parseRequestUrl(in)
+	url, err := url.ParseIncomingRequest(in)
 	if err != nil {
 		return nil, err
 	}
@@ -34,28 +32,6 @@ func ParseRequest(in types.IncomingRequest) (*http.Request, error) {
 	r.Header = parseRequestHeaders(in)
 
 	return r, nil
-}
-
-func parseRequestUrl(in types.IncomingRequest) (*url.URL, error) {
-	scheme, ok := option.Handle(in.Scheme())
-	if !ok {
-		return nil, fmt.Errorf("scheme is required")
-	}
-
-	authority, ok := option.Handle(in.Authority())
-	if !ok {
-		return nil, fmt.Errorf("authority is required")
-	}
-
-	path := option.UnwrapOr(in.PathWithQuery(), "/")
-
-	rawURL := fmt.Sprintf("%s://%s%s",
-		scheme.String(),
-		authority,
-		path,
-	)
-
-	return url.ParseRequestURI(rawURL)
 }
 
 type requestBody struct {

@@ -3,10 +3,11 @@ package http
 import (
 	"fmt"
 	"net/http"
-	"net/url"
+	gourl "net/url"
 
 	"go.bytecodealliance.org/cm"
 
+	"github.com/a-skua/go-wasi/http/internal/url"
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/outgoing-handler"
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/types"
 	"github.com/a-skua/go-wasi/internal/wit/option"
@@ -39,32 +40,18 @@ func (b *clientBody) Close() error {
 }
 
 func (c *Client) Get(rawurl string) (*http.Response, error) {
-	url, err := url.ParseRequestURI(rawurl)
+	h := newHeader()
+
+	out := types.NewOutgoingRequest(h.headers())
+	out.SetMethod(types.MethodGet())
+
+	u, err := gourl.ParseRequestURI(rawurl)
 	if err != nil {
 		return nil, err
 	}
+	url.SetOutgoingRequestURL(out, u)
 
-	headers := types.NewFields()
-
-	req := types.NewOutgoingRequest(headers)
-	req.SetMethod(types.MethodGet())
-
-	switch url.Scheme {
-	case "http":
-		req.SetScheme(cm.Some(types.SchemeHTTP()))
-	case "https":
-		req.SetScheme(cm.Some(types.SchemeHTTPS()))
-	default:
-		req.SetScheme(cm.Some(types.SchemeHTTPS()))
-	}
-
-	req.SetAuthority(cm.Some(url.Host))
-	pathWithQuery := url.Path
-	if url.RawQuery != "" {
-		pathWithQuery += "?" + url.RawQuery
-	}
-	req.SetPathWithQuery(cm.Some(pathWithQuery))
-	future, err := result.Handle(outgoinghandler.Handle(req, cm.None[types.RequestOptions]()))
+	future, err := result.Handle(outgoinghandler.Handle(out, cm.None[types.RequestOptions]()))
 	if err != nil {
 		return nil, err
 	}
@@ -94,13 +81,13 @@ func (c *Client) Get(rawurl string) (*http.Response, error) {
 
 type header struct {
 	http.Header
-	Status int
+	status int
 }
 
 func newHeader() header {
 	return header{
 		Header: make(http.Header),
-		Status: 200,
+		status: 200,
 	}
 }
 
@@ -115,4 +102,8 @@ func (h header) headers() types.Headers {
 		}
 	}
 	return headers
+}
+
+func (h header) statusCode() types.StatusCode {
+	return types.StatusCode(h.status)
 }
