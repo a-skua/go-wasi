@@ -6,6 +6,30 @@ import (
 	"go.bytecodealliance.org/cm"
 )
 
+func TestHandleBool(t *testing.T) {
+	tests := map[string]struct {
+		result cm.BoolResult
+		want   bool
+	}{
+		"True case": {
+			result: cm.ResultOK,
+			want:   true,
+		},
+		"False case": {
+			result: cm.ResultErr,
+			want:   false,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := HandleBool(tt.result)
+			if got != tt.want {
+				t.Errorf("HandleBool() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestHandle(t *testing.T) {
 	tests := map[string]struct {
 		result    cm.Result[string, int, string]

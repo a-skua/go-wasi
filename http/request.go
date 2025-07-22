@@ -2,7 +2,7 @@ package http
 
 import (
 	"fmt"
-	goio "io"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -16,12 +16,12 @@ import (
 func ParseRequest(in types.IncomingRequest) (*http.Request, error) {
 	method := in.Method()
 
-	url, err := parseUrl(in)
+	url, err := parseRequestUrl(in)
 	if err != nil {
 		return nil, err
 	}
 
-	body, err := parseBody(in)
+	body, err := parseRequestBody(in)
 	if err != nil {
 		return nil, err
 	}
@@ -31,12 +31,12 @@ func ParseRequest(in types.IncomingRequest) (*http.Request, error) {
 		return nil, err
 	}
 
-	r.Header = parseHeaders(in)
+	r.Header = parseRequestHeaders(in)
 
 	return r, nil
 }
 
-func parseUrl(in types.IncomingRequest) (*url.URL, error) {
+func parseRequestUrl(in types.IncomingRequest) (*url.URL, error) {
 	scheme, ok := option.Handle(in.Scheme())
 	if !ok {
 		return nil, fmt.Errorf("scheme is required")
@@ -58,11 +58,11 @@ func parseUrl(in types.IncomingRequest) (*url.URL, error) {
 	return url.ParseRequestURI(rawURL)
 }
 
-type body struct {
+type requestBody struct {
 	stream types.InputStream
 }
 
-func parseBody(in types.IncomingRequest) (*body, error) {
+func parseRequestBody(in types.IncomingRequest) (*requestBody, error) {
 	con, err := result.Handle(in.Consume())
 	if err != nil {
 		return nil, err
@@ -73,14 +73,14 @@ func parseBody(in types.IncomingRequest) (*body, error) {
 		return nil, err
 	}
 
-	return &body{
+	return &requestBody{
 		stream: stream,
 	}, nil
 }
 
-func (b *body) Read(p []byte) (zero int, _ error) {
+func (b *requestBody) Read(p []byte) (zero int, _ error) {
 	if b == nil {
-		return zero, goio.EOF
+		return zero, io.EOF
 	}
 
 	list, err := result.Handle(b.stream.Read(uint64(len(p))))
@@ -96,12 +96,12 @@ func (b *body) Read(p []byte) (zero int, _ error) {
 	return n, nil
 }
 
-func (b *body) Close() error {
+func (b *requestBody) Close() error {
 	b.stream.ResourceDrop()
 	return nil
 }
 
-func parseHeaders(in types.IncomingRequest) http.Header {
+func parseRequestHeaders(in types.IncomingRequest) http.Header {
 	headers := http.Header{}
 
 	entries := in.Headers().Entries()
@@ -111,16 +111,4 @@ func parseHeaders(in types.IncomingRequest) http.Header {
 		headers[k] = append(headers[k], v)
 	}
 	return headers
-}
-
-type Header struct {
-	http.Header
-	Status int
-}
-
-func NewHeader() Header {
-	return Header{
-		Header: make(http.Header),
-		Status: 200,
-	}
 }

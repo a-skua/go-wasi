@@ -1,7 +1,6 @@
 package http
 
 import (
-	"bytes"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -92,42 +91,20 @@ func (c *Client) Get(rawurl string) (*http.Response, error) {
 		Body:       clientBody,
 	}, nil
 }
-func parseRequest(in types.IncomingRequest) (*http.Request, error) {
-	method := in.Method()
 
-	url, err := parseUrl(in)
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := parseBody(in)
-	if err != nil {
-		return nil, err
-	}
-
-	r, err := http.NewRequest(method.String(), url.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	r.Header = parseHeaders(in)
-
-	return r, nil
-}
-
-type proxyHeader struct {
+type header struct {
 	http.Header
-	status int
+	Status int
 }
 
-func newHeader() proxyHeader {
-	return proxyHeader{
+func newHeader() header {
+	return header{
 		Header: make(http.Header),
-		status: 200,
+		Status: 200,
 	}
 }
 
-func (h proxyHeader) headers() types.Headers {
+func (h header) headers() types.Headers {
 	headers := types.NewFields()
 	for k, vs := range h.Header {
 		if vs == nil {
@@ -138,46 +115,4 @@ func (h proxyHeader) headers() types.Headers {
 		}
 	}
 	return headers
-}
-
-type proxyResponse struct {
-	status int
-	header proxyHeader
-	body   bytes.Buffer
-}
-
-func newResponse() *proxyResponse {
-	return &proxyResponse{
-		header: newHeader(),
-	}
-}
-
-func (r *proxyResponse) Header() http.Header {
-	return r.header.Header
-}
-
-func (r *proxyResponse) Write(b []byte) (int, error) {
-	r.body.Write(b)
-	return len(b), nil
-}
-
-func (r *proxyResponse) WriteHeader(statusCode int) {
-	r.header.status = statusCode
-}
-
-func (r *proxyResponse) flush(out types.ResponseOutparam) {
-	w := types.NewOutgoingResponse(r.header.headers())
-	w.SetStatusCode(types.StatusCode(r.header.status))
-	defer types.ResponseOutparamSet(
-		out,
-		cm.OK[cm.Result[types.ErrorCodeShape, types.OutgoingResponse, types.ErrorCode]](w),
-	)
-
-	body := result.Unwrap(w.Body())
-	defer types.OutgoingBodyFinish(body, cm.None[types.Trailers]())
-
-	output := result.Unwrap(body.Write())
-	defer output.ResourceDrop()
-
-	output.Write(cm.ToList(r.body.Bytes()))
 }

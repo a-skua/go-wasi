@@ -6,6 +6,10 @@ import (
 	"go.bytecodealliance.org/cm"
 )
 
+func HandleBool(r cm.BoolResult) bool {
+	return r == cm.ResultOK
+}
+
 func Handle[Shape, OK, Err any](r cm.Result[Shape, OK, Err]) (OK, error) {
 	ok, err, isErr := r.Result()
 	if isErr {
