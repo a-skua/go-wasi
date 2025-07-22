@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"bytes"
-	"fmt"
 	gohttp "net/http"
 
 	"go.bytecodealliance.org/cm"
@@ -10,7 +9,7 @@ import (
 	"github.com/a-skua/go-wasi/http"
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/incoming-handler"
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/types"
-	"github.com/a-skua/go-wasi/internal/wit"
+	"github.com/a-skua/go-wasi/internal/wit/result"
 )
 
 var Handler gohttp.Handler
@@ -73,21 +72,15 @@ func (r *response) flush(out types.ResponseOutparam) {
 	}
 
 	w := types.NewOutgoingResponse(headers)
-	w.SetStatusCode(http.StatusCode(r.header.Status))
+	w.SetStatusCode(types.StatusCode(r.header.Status))
 
 	defer types.ResponseOutparamSet(out, cm.OK[cm.Result[types.ErrorCodeShape, types.OutgoingResponse, types.ErrorCode]](w))
 
-	body, err := wit.HandleResult(w.Body())
-	if err != nil {
-		panic(fmt.Errorf("failed to get outgoing body: %s", err))
-	}
-	defer types.OutgoingBodyFinish(*body, cm.None[types.Trailers]())
+	body := result.Unwrap(w.Body())
+	defer types.OutgoingBodyFinish(body, cm.None[types.Trailers]())
 
-	output, err := wit.HandleResult((*body).Write())
-	if err != nil {
-		panic(fmt.Errorf("failed to write body: %s", err))
-	}
-	defer (*output).ResourceDrop()
+	output := result.Unwrap(body.Write())
+	defer (output).ResourceDrop()
 
-	(*output).Write(cm.ToList(r.body.Bytes()))
+	output.Write(cm.ToList(r.body.Bytes()))
 }

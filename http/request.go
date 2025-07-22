@@ -9,7 +9,8 @@ import (
 	"go.bytecodealliance.org/cm"
 
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/types"
-	"github.com/a-skua/go-wasi/internal/wit"
+	"github.com/a-skua/go-wasi/internal/wit/option"
+	"github.com/a-skua/go-wasi/internal/wit/result"
 )
 
 func ParseRequest(in types.IncomingRequest) (*http.Request, error) {
@@ -36,18 +37,17 @@ func ParseRequest(in types.IncomingRequest) (*http.Request, error) {
 }
 
 func parseUrl(in types.IncomingRequest) (*url.URL, error) {
-	schemeOpt := in.Scheme()
-	if schemeOpt.None() {
+	scheme, ok := option.Handle(in.Scheme())
+	if !ok {
 		return nil, fmt.Errorf("scheme is required")
 	}
-	scheme := schemeOpt.Value()
 
-	authority, ok := wit.HandleOption(in.Authority())
+	authority, ok := option.Handle(in.Authority())
 	if !ok {
 		return nil, fmt.Errorf("authority is required")
 	}
 
-	path := wit.UnwrapOptionOr(in.PathWithQuery(), "/")
+	path := option.UnwrapOr(in.PathWithQuery(), "/")
 
 	rawURL := fmt.Sprintf("%s://%s%s",
 		scheme.String(),
@@ -63,30 +63,29 @@ type body struct {
 }
 
 func parseBody(in types.IncomingRequest) (*body, error) {
-	con, err := wit.HandleResult(in.Consume())
+	con, err := result.Handle(in.Consume())
 	if err != nil {
-		return nil, fmt.Errorf("failed to consume body: %s", err)
+		return nil, err
 	}
 
-	stream, err := wit.HandleResult((*con).Stream())
+	stream, err := result.Handle(con.Stream())
 	if err != nil {
-		return nil, fmt.Errorf("failed to get stream: %s", err)
+		return nil, err
 	}
 
 	return &body{
-		stream: *stream,
+		stream: stream,
 	}, nil
 }
 
-func (b *body) Read(p []byte) (int, error) {
-	const zero = 0
+func (b *body) Read(p []byte) (zero int, _ error) {
 	if b == nil {
 		return zero, goio.EOF
 	}
 
-	list, err := wit.HandleResult(b.stream.Read(uint64(len(p))))
+	list, err := result.Handle(b.stream.Read(uint64(len(p))))
 	if err != nil {
-		return zero, fmt.Errorf("failed to read body: %s", err)
+		return zero, err
 	}
 
 	n := int(list.Len())

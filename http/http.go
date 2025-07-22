@@ -10,7 +10,8 @@ import (
 
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/outgoing-handler"
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/types"
-	"github.com/a-skua/go-wasi/internal/wit"
+	"github.com/a-skua/go-wasi/internal/wit/option"
+	"github.com/a-skua/go-wasi/internal/wit/result"
 )
 
 type Client http.Client
@@ -19,11 +20,10 @@ type clientBody struct {
 	stream types.InputStream
 }
 
-func (b *clientBody) Read(p []byte) (int, error) {
-	const zero = 0
-	list, err := wit.HandleResult(b.stream.Read(uint64(len(p))))
+func (b *clientBody) Read(p []byte) (zero int, _ error) {
+	list, err := result.Handle(b.stream.Read(uint64(len(p))))
 	if err != nil {
-		return zero, fmt.Errorf("failed to read body: %s", err)
+		return zero, err
 	}
 
 	n := int(list.Len())
@@ -65,9 +65,9 @@ func (c *Client) Get(rawurl string) (*http.Response, error) {
 		pathWithQuery += "?" + url.RawQuery
 	}
 	req.SetPathWithQuery(cm.Some(pathWithQuery))
-	future, errcode := wit.HandleResult(outgoinghandler.Handle(req, cm.None[types.RequestOptions]()))
-	if errcode != nil {
-		return nil, fmt.Errorf("failed to handle outgoing request: %v", errcode)
+	future, err := result.Handle(outgoinghandler.Handle(req, cm.None[types.RequestOptions]()))
+	if err != nil {
+		return nil, err
 	}
 	defer future.ResourceDrop()
 
@@ -75,17 +75,17 @@ func (c *Client) Get(rawurl string) (*http.Response, error) {
 	defer poll.ResourceDrop()
 	poll.Block()
 
-	wrap := wit.UnwrapResult(future.Get().Value())
-	res, errcode := wit.HandleResult(*wrap)
+	wrap := result.Unwrap(option.Unwrap(future.Get()))
+	res, errcode := result.Handle(wrap)
 	if errcode != nil {
 		return nil, fmt.Errorf("failed to get future response: %v", errcode)
 	}
 	defer res.ResourceDrop()
 
-	in := wit.UnwrapResult(res.Consume())
-	stream := wit.UnwrapResult(in.Stream())
+	in := result.Unwrap(res.Consume())
+	stream := result.Unwrap(in.Stream())
 	clientBody := &clientBody{
-		stream: *stream,
+		stream: stream,
 	}
 	return &http.Response{
 		StatusCode: int(res.Status()),
@@ -173,16 +173,10 @@ func (r *proxyResponse) flush(out types.ResponseOutparam) {
 		cm.OK[cm.Result[types.ErrorCodeShape, types.OutgoingResponse, types.ErrorCode]](w),
 	)
 
-	body, err := wit.HandleResult(w.Body())
-	if err != nil {
-		panic(fmt.Errorf("failed to get outgoing body: %s", err))
-	}
-	defer types.OutgoingBodyFinish(*body, cm.None[types.Trailers]())
+	body := result.Unwrap(w.Body())
+	defer types.OutgoingBodyFinish(body, cm.None[types.Trailers]())
 
-	output, err := wit.HandleResult(body.Write())
-	if err != nil {
-		panic(fmt.Errorf("failed to write body: %s", err))
-	}
+	output := result.Unwrap(body.Write())
 	defer output.ResourceDrop()
 
 	output.Write(cm.ToList(r.body.Bytes()))
