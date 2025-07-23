@@ -1,5 +1,3 @@
-SRC := $(shell find . -name '*.go' -not -path './cmd/example/*' -not -path './internal/*')
-
 .PROXY: example
 example:
 	$(MAKE) -C cmd/example

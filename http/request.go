@@ -1,7 +1,6 @@
 package http
 
 import (
-	"io"
 	"net/http"
 
 	"go.bytecodealliance.org/cm"
@@ -11,76 +10,38 @@ import (
 	"github.com/a-skua/go-wasi/internal/wit/result"
 )
 
-func ParseRequest(in types.IncomingRequest) (*http.Request, error) {
-	method := in.Method()
+func ParseRequest(r types.IncomingRequest) (*http.Request, error) {
+	method := r.Method()
 
-	url, err := url.ParseIncomingRequest(in)
+	url, err := url.ParseIncomingRequest(r)
 	if err != nil {
 		return nil, err
 	}
 
-	body, err := parseRequestBody(in)
+	in, err := result.Handle(r.Consume())
 	if err != nil {
 		return nil, err
 	}
 
-	r, err := http.NewRequest(method.String(), url.String(), body)
+	body, err := parseBody(in)
 	if err != nil {
 		return nil, err
 	}
 
-	r.Header = parseRequestHeaders(in)
-
-	return r, nil
-}
-
-type requestBody struct {
-	stream types.InputStream
-}
-
-func parseRequestBody(in types.IncomingRequest) (*requestBody, error) {
-	con, err := result.Handle(in.Consume())
+	request, err := http.NewRequest(method.String(), url.String(), body)
 	if err != nil {
 		return nil, err
 	}
 
-	stream, err := result.Handle(con.Stream())
-	if err != nil {
-		return nil, err
-	}
+	request.Header = parseHeaders(r.Headers())
 
-	return &requestBody{
-		stream: stream,
-	}, nil
+	return request, nil
 }
 
-func (b *requestBody) Read(p []byte) (zero int, _ error) {
-	if b == nil {
-		return zero, io.EOF
-	}
-
-	list, err := result.Handle(b.stream.Read(uint64(len(p))))
-	if err != nil {
-		return zero, err
-	}
-
-	n := int(list.Len())
-	if n > len(p) {
-		n = len(p)
-	}
-	copy(p, list.Slice())
-	return n, nil
-}
-
-func (b *requestBody) Close() error {
-	b.stream.ResourceDrop()
-	return nil
-}
-
-func parseRequestHeaders(in types.IncomingRequest) http.Header {
+func parseHeaders(h types.Headers) http.Header {
 	headers := http.Header{}
 
-	entries := in.Headers().Entries()
+	entries := h.Entries()
 	for _, entry := range entries.Slice() {
 		k := string(entry.F0)
 		v := string(cm.List[uint8](entry.F1).Slice())

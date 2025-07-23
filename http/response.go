@@ -63,3 +63,29 @@ func (r *response) Flush() error {
 	_, err := result.Handle(output.Write(cm.ToList(r.body.Bytes())))
 	return err
 }
+
+func parseResponse(r types.IncomingResponse) (*http.Response, error) {
+	status := r.Status()
+	if status < 100 || status > 599 {
+		return nil, fmt.Errorf("invalid status code: %d", status)
+	}
+
+	in, err := result.Handle(r.Consume())
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := parseBody(in)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &http.Response{
+		StatusCode: int(status),
+		Body:       body,
+	}
+
+	response.Header = parseHeaders(r.Headers())
+
+	return response, nil
+}
