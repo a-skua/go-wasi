@@ -12,7 +12,7 @@ make
 ### e.g. http-proxy
 
 ```sh
-wasmtime serve -S cli cmd/example/http-proxy.wasm
+wasmtime serve -S cli examples/http-proxy.wasm
 ```
 
 ```sh
@@ -22,7 +22,14 @@ curl -i 'http://localhost:8080'
 ### e.g. http-client
 
 ```sh
-wasmtime run -S http cmd/example/http-client.wasm
+wasmtime run -S http examples/http-client.wasm
+```
+
+
+### e.g. print
+
+```sh
+wasmtime run --dir=./examples::/ examples/print.wasm /Makefile /foo
 ```
 
 ### Tools

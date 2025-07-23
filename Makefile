@@ -1,6 +1,6 @@
-.PROXY: example
-example:
-	$(MAKE) -C cmd/example
+.PHONY: examples
+examples:
+	@$(MAKE) -C examples
 
 .PHONY: gen
 gen: world.wasm

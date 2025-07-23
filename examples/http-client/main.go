@@ -13,14 +13,14 @@ import (
 )
 
 func init() {
-	run.Exports.Run = runner
+	run.Exports.Run = Run
 }
 
 func main() {
-	runner()
+	Run()
 }
 
-func runner() cm.BoolResult {
+func Run() cm.BoolResult {
 	var c http.Client
 
 	res, err := c.Get("https://example.com")
