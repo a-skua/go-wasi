@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	gohttp "net/http"
 	"os"
@@ -48,8 +49,7 @@ func Run() cm.BoolResult {
 		os.Exit(1)
 	}
 
-	body := make([]byte, 1024)
-	_, err = r.Body.Read(body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		slog.Error("Failed to read response body", "error", err)
 		os.Exit(1)

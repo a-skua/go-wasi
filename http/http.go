@@ -1,12 +1,14 @@
 package http
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 
 	"go.bytecodealliance.org/cm"
 
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/types"
+	"github.com/a-skua/go-wasi/internal/gen/wasi/io/streams"
 	"github.com/a-skua/go-wasi/internal/wit/result"
 )
 
@@ -86,7 +88,12 @@ func (b *body) Read(p []byte) (zero int, _ error) {
 		return zero, io.EOF
 	}
 
-	list, err := result.Handle(b.stream.Read(uint64(len(p))))
+	list, err := result.HandleErr(b.stream.Read(uint64(len(p))), func(err streams.StreamError) error {
+		if err.Closed() {
+			return io.EOF
+		}
+		return fmt.Errorf("stream error: %s", err)
+	})
 	if err != nil {
 		return zero, err
 	}

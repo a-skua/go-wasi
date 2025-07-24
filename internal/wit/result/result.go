@@ -18,6 +18,14 @@ func Handle[Shape, OK, Err any](r cm.Result[Shape, OK, Err]) (OK, error) {
 	return ok, nil
 }
 
+func HandleErr[Shape, OK, Err any](r cm.Result[Shape, OK, Err], fn func(Err) error) (OK, error) {
+	ok, err, isErr := r.Result()
+	if isErr {
+		return ok, fn(err)
+	}
+	return ok, nil
+}
+
 func Unwrap[Shape, OK, Err any](r cm.Result[Shape, OK, Err]) OK {
 	ok, err, isErr := r.Result()
 	if isErr {

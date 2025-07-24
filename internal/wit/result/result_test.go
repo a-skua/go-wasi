@@ -1,6 +1,7 @@
 package result
 
 import (
+	"errors"
 	"testing"
 
 	"go.bytecodealliance.org/cm"
@@ -57,6 +58,38 @@ func TestHandle(t *testing.T) {
 				t.Errorf("Handle() error = %v, want %v", err.Error(), tt.wantErr)
 			} else if err == nil && tt.wantErr != "" {
 				t.Errorf("Handle() expected error %v, got nil", tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestHandleErr(t *testing.T) {
+	tests := map[string]struct {
+		result    cm.Result[string, int, string]
+		wantValue int
+		wantErr   string
+	}{
+		"Success case": {
+			result:    cm.OK[cm.Result[string, int, string]](42),
+			wantValue: 42,
+			wantErr:   "",
+		},
+		"Error case": {
+			result:    cm.Err[cm.Result[string, int, string]]("error occurred"),
+			wantValue: 0, // zero value for int
+			wantErr:   "error occurred",
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			value, err := HandleErr(tt.result, func(err string) error { return errors.New(err) })
+			if value != tt.wantValue {
+				t.Errorf("HandleErr() = %v, want %v", value, tt.wantValue)
+			}
+			if err != nil && err.Error() != tt.wantErr {
+				t.Errorf("HandleErr() error = %v, want %v", err.Error(), tt.wantErr)
+			} else if err == nil && tt.wantErr != "" {
+				t.Errorf("HandleErr() expected error %v, got nil", tt.wantErr)
 			}
 		})
 	}
