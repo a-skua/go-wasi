@@ -1,10 +1,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log/slog"
 	gohttp "net/http"
 	"os"
+	"strings"
 
 	"go.bytecodealliance.org/cm"
 
@@ -12,32 +14,42 @@ import (
 	"github.com/a-skua/go-wasi/internal/gen/wasi/cli/run"
 )
 
+var (
+	method = flag.String("x", "GET", "GET or POST")
+	url    = flag.String("url", "https://example.com", "URL to fetch")
+)
+
 func init() {
+	flag.Parse()
 	run.Exports.Run = Run
 }
 
-func main() {
-	Run()
-}
+func main() {}
 
 func Run() cm.BoolResult {
-	var c http.Client
-
-	res, err := c.Get("https://example.com")
+	var (
+		c   http.Client
+		r   *gohttp.Response
+		err error
+	)
+	if *method == "GET" {
+		r, err = c.Get(*url)
+	} else {
+		r, err = c.Post(*url, "text/plan", strings.NewReader("hello, world"))
+	}
 	if err != nil {
 		slog.Error("Failed to make GET request", "error", err)
 		os.Exit(1)
 	}
-	defer res.Body.Close()
+	defer r.Body.Close()
 
-	slog.Info("Response received", "status", res.Status)
-	if res.StatusCode != gohttp.StatusOK {
-		slog.Error("Unexpected status code", "status_code", res.StatusCode)
+	if r.StatusCode != gohttp.StatusOK {
+		slog.Error("Unexpected status code", "status_code", r.StatusCode)
 		os.Exit(1)
 	}
 
 	body := make([]byte, 1024)
-	_, err = res.Body.Read(body)
+	_, err = r.Body.Read(body)
 	if err != nil {
 		slog.Error("Failed to read response body", "error", err)
 		os.Exit(1)
