@@ -1,6 +1,7 @@
 package http
 
 import (
+	"io"
 	"net/http"
 
 	"go.bytecodealliance.org/cm"
@@ -38,14 +39,30 @@ func ParseRequest(r types.IncomingRequest) (*http.Request, error) {
 	return request, nil
 }
 
-func parseHeaders(h types.Headers) http.Header {
-	headers := http.Header{}
+func newRequest(r *http.Request) (zero types.OutgoingRequest, _ error) {
+	out := types.NewOutgoingRequest(newHeader(r.Header).headers())
+	out.SetMethod(types.Method(newMethod(r.Method)))
 
-	entries := h.Entries()
-	for _, entry := range entries.Slice() {
-		k := string(entry.F0)
-		v := string(cm.List[uint8](entry.F1).Slice())
-		headers[k] = append(headers[k], v)
+	err := url.SetOutgoingRequestURL(out, r.URL)
+	if err != nil {
+		return zero, err
 	}
-	return headers
+
+	if r.Body == nil {
+		return out, nil
+	}
+
+	buf, err := io.ReadAll(r.Body)
+	if err != nil {
+		return zero, err
+	}
+
+	body := result.Unwrap(out.Body())
+	defer types.OutgoingBodyFinish(body, cm.None[types.Trailers]())
+
+	stream := result.Unwrap(body.Write())
+	stream.Write(cm.ToList(buf))
+	defer stream.ResourceDrop()
+
+	return out, err
 }

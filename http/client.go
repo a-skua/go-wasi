@@ -1,12 +1,11 @@
 package http
 
 import (
+	"io"
 	"net/http"
-	gourl "net/url"
 
 	"go.bytecodealliance.org/cm"
 
-	"github.com/a-skua/go-wasi/http/internal/url"
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/outgoing-handler"
 	"github.com/a-skua/go-wasi/internal/gen/wasi/http/types"
 	"github.com/a-skua/go-wasi/internal/wit/future"
@@ -16,31 +15,43 @@ import (
 
 type Client http.Client
 
-func (c *Client) Get(rawurl string) (*http.Response, error) {
-	h := newHeader()
-
-	out := types.NewOutgoingRequest(h.headers())
-	out.SetMethod(types.MethodGet())
-
-	u, err := gourl.ParseRequestURI(rawurl)
+func (c *Client) Get(rawurl string) (zero *http.Response, _ error) {
+	r, err := http.NewRequest(http.MethodGet, rawurl, nil)
 	if err != nil {
-		return nil, err
+		return zero, err
 	}
-	url.SetOutgoingRequestURL(out, u)
 
-	f, err := result.Handle(outgoinghandler.Handle(out, cm.None[types.RequestOptions]()))
+	return c.Do(r)
+}
+
+func (c *Client) Post(rawurl, contentType string, body io.Reader) (zero *http.Response, _ error) {
+	r, err := http.NewRequest(http.MethodPost, rawurl, body)
 	if err != nil {
-		return nil, err
+		return zero, err
 	}
-	defer f.ResourceDrop()
+	r.Header.Set("Content-Type", contentType)
 
+	return c.Do(r)
+}
+
+func (c *Client) Do(r *http.Request) (zero *http.Response, _ error) {
+	out, err := newRequest(r)
+	if err != nil {
+		return zero, err
+	}
+
+	o := types.NewRequestOptions()
+
+	f, err := result.Handle(outgoinghandler.Handle(out, cm.Some(o)))
+	if err != nil {
+		return zero, err
+	}
 	future.Wait(f)
 
-	r, err := result.Handle(result.Unwrap(option.Unwrap(f.Get())))
+	in, err := result.Handle(result.Unwrap(option.Unwrap(f.Get())))
 	if err != nil {
-		return nil, err
+		return zero, err
 	}
-	defer r.ResourceDrop()
 
-	return parseResponse(r)
+	return parseResponse(in)
 }

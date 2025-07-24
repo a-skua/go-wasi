@@ -10,21 +10,52 @@ import (
 	"github.com/a-skua/go-wasi/internal/wit/result"
 )
 
-type header struct {
-	http.Header
-	status int
+func newMethod(m string) types.Method {
+	switch m {
+	case http.MethodGet:
+		return types.MethodGet()
+	case http.MethodPost:
+		return types.MethodPost()
+	case http.MethodPut:
+		return types.MethodPut()
+	case http.MethodDelete:
+		return types.MethodDelete()
+	case http.MethodHead:
+		return types.MethodHead()
+	case http.MethodPatch:
+		return types.MethodPatch()
+	case http.MethodOptions:
+		return types.MethodOptions()
+	case http.MethodTrace:
+		return types.MethodTrace()
+	case http.MethodConnect:
+		return types.MethodConnect()
+	default:
+		return types.MethodOther(m)
+	}
 }
 
-func newHeader() header {
-	return header{
-		Header: make(http.Header),
-		status: 200,
+type header http.Header
+
+func parseHeaders(h types.Headers) http.Header {
+	headers := http.Header{}
+
+	entries := h.Entries()
+	for _, entry := range entries.Slice() {
+		k := string(entry.F0)
+		v := string(cm.List[uint8](entry.F1).Slice())
+		headers[k] = append(headers[k], v)
 	}
+	return headers
+}
+
+func newHeader(h http.Header) header {
+	return header(h)
 }
 
 func (h header) headers() types.Headers {
 	headers := types.NewFields()
-	for k, vs := range h.Header {
+	for k, vs := range h {
 		if vs == nil {
 			continue
 		}
@@ -33,10 +64,6 @@ func (h header) headers() types.Headers {
 		}
 	}
 	return headers
-}
-
-func (h header) statusCode() types.StatusCode {
-	return types.StatusCode(h.status)
 }
 
 type body struct {

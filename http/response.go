@@ -19,18 +19,19 @@ type ResponseWriter interface {
 func NewResponseWriter(out types.ResponseOutparam) ResponseWriter {
 	return &response{
 		out:    out,
-		header: newHeader(),
+		header: newHeader(http.Header{}),
 	}
 }
 
 type response struct {
 	out    types.ResponseOutparam
+	status int
 	header header
 	body   bytes.Buffer
 }
 
 func (r *response) Header() http.Header {
-	return r.header.Header
+	return http.Header(r.header)
 }
 
 func (r *response) Write(b []byte) (int, error) {
@@ -38,15 +39,15 @@ func (r *response) Write(b []byte) (int, error) {
 }
 
 func (r *response) WriteHeader(statusCode int) {
-	r.header.status = statusCode
+	r.status = statusCode
 }
 
 func (r *response) Flush() error {
 	w := types.NewOutgoingResponse(r.header.headers())
 
-	ok := result.HandleBool(w.SetStatusCode(r.header.statusCode()))
+	ok := result.HandleBool(w.SetStatusCode(types.StatusCode(r.status)))
 	if !ok {
-		return fmt.Errorf("failed to set status code %d", r.header.statusCode())
+		return fmt.Errorf("failed to set status code %d", r.status)
 	}
 
 	defer types.ResponseOutparamSet(
